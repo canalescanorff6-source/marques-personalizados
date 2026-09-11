@@ -1,0 +1,56 @@
+name: Encrypted offsite backup
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * *'
+
+concurrency:
+  group: marques-offsite-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.BACKUP_OFFSITE_ENABLED == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Require reproducible dependency lock
+        run: test -f package-lock.json || (echo "::error::package-lock.json obrigatório. Execute Generate package lock e faça commit do arquivo." && exit 1)
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Validate disaster-recovery storage isolation
+        run: npm run check:dr-storage
+      - name: Validate offsite backup contract
+        run: npm run check:offsite-backup
+      - name: Verify current schema readiness
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:verify
+      - name: Generate, encrypt, upload and verify backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PRIVACY_HASH_SECRET: ${{ secrets.PRIVACY_HASH_SECRET }}
+          BACKUP_SIGNING_SECRET: ${{ secrets.BACKUP_SIGNING_SECRET }}
+          BACKUP_SIGNING_PREVIOUS_SECRET: ${{ secrets.BACKUP_SIGNING_PREVIOUS_SECRET }}
+          BACKUP_SIGNING_KEY_ID: ${{ vars.BACKUP_SIGNING_KEY_ID }}
+          BACKUP_ENCRYPTION_SECRET: ${{ secrets.BACKUP_ENCRYPTION_SECRET }}
+          BACKUP_ENCRYPTION_PREVIOUS_SECRET: ${{ secrets.BACKUP_ENCRYPTION_PREVIOUS_SECRET }}
+          BACKUP_ENCRYPTION_KEY_ID: ${{ vars.BACKUP_ENCRYPTION_KEY_ID }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_OFFSITE_RETENTION_DAYS: ${{ vars.BACKUP_OFFSITE_RETENTION_DAYS }}
+          BACKUP_OFFSITE_MAX_AGE_HOURS: ${{ vars.BACKUP_OFFSITE_MAX_AGE_HOURS }}
+          BACKUP_S3_FORCE_PATH_STYLE: ${{ vars.BACKUP_S3_FORCE_PATH_STYLE }}
+        run: npm run backup:offsite

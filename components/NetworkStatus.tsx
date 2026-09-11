@@ -1,0 +1,4 @@
+'use client';
+import { useEffect,useState } from 'react';
+import { WifiOff,Wifi } from 'lucide-react';
+export default function NetworkStatus(){const [state,setState]=useState<'online'|'offline'|'restored'>('online');useEffect(()=>{const offline=()=>setState('offline');const online=()=>{setState('restored');setTimeout(()=>setState('online'),2600);};if(!navigator.onLine)setState('offline');window.addEventListener('offline',offline);window.addEventListener('online',online);return()=>{window.removeEventListener('offline',offline);window.removeEventListener('online',online);};},[]);if(state==='online')return null;return <div className={`network-status ${state}`} role="status" aria-live="polite">{state==='offline'?<WifiOff size={15}/>:<Wifi size={15}/>}<span>{state==='offline'?'Você está sem conexão. Algumas ações ficarão disponíveis quando a internet voltar.':'Conexão restabelecida.'}</span></div>;}

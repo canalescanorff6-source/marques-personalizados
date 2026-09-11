@@ -1,0 +1,10 @@
+<svg width="900" height="960" viewBox="0 0 900 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#252A30"/><stop offset="1" stop-color="#0E1114"/></linearGradient></defs>
+<rect width="900" height="960" fill="url(#g)"/>
+<path d="M290 310L450 210L610 310L665 408V738H235V408L290 310Z" fill="#171B1F" stroke="#C7A15B" stroke-width="6"/>
+<path d="M290 310H610M450 210V738" stroke="#6E5A36" stroke-width="4"/>
+<rect x="315" y="422" width="270" height="190" rx="20" fill="#20252B" stroke="#E0C58E" stroke-width="4"/>
+<text x="450" y="505" fill="#F3EFE7" font-size="43" font-family="Arial" font-weight="700" text-anchor="middle">CAIXA</text>
+<text x="450" y="558" fill="#C7A15B" font-size="28" font-family="Arial" font-weight="700" text-anchor="middle">MILK</text>
+<text x="70" y="870" fill="#A9ADB2" font-size="22" font-family="Arial">Substitua pela foto real no painel</text>
+</svg>

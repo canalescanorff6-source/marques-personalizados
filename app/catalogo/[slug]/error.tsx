@@ -1,0 +1,2 @@
+'use client';
+export default function ProductError({reset}:{error:Error&{digest?:string};reset:()=>void}){return <main className="state-page"><div><div className="eyebrow">Produto</div><h1>Não foi possível carregar esta peça.</h1><p>Tente novamente ou volte ao catálogo para continuar navegando.</p><div className="inline-actions"><button type="button" className="btn btn-primary" onClick={reset}>Tentar novamente</button><a className="btn" href="/#catalogo">Voltar ao catálogo</a></div></div></main>;}

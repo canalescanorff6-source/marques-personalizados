@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const failures=[];const read=file=>fs.readFileSync(file,'utf8');const need=(file,token,label)=>{if(!read(file).includes(token))failures.push(`${label}: ${token}`);};
+for(const file of ['lib/backup-restore.ts','lib/privacy.ts','lib/db.ts','sql/schema.sql','app/api/admin/backup/route.ts','app/api/admin/restore/route.ts','scripts/backup-db.mjs','scripts/restore-db.mjs','scripts/verify-backup.mjs'])if(!fs.existsSync(file))failures.push(`Arquivo ausente: ${file}`);
+for(const token of ['marques-catalog-v9','mediaSafe?9:8'])need('app/api/admin/backup/route.ts',token,'Backup Admin V8/V9');
+need('lib/db.ts','privacy_tombstones:mergePrivacyTombstones(privacyTombstones)','Export Admin com vault');
+for(const token of ['privacy_tombstones','marques-catalog-v8','marques-catalog-v9','privacyRecovery','normalizePrivacyTombstones'])need('lib/backup-restore.ts',token,'Contrato backup V8/V9');
+for(const token of ['mergePrivacyTombstones','PrivacyTombstone','sanitizeRestorePayloadPrivacy'])need('lib/privacy.ts',token,'Núcleo de tombstones');
+for(const token of ['privacyTombstones','prepareBusinessRestorePayloadForPrivacy','marques_restore_business_payload($1::jsonb,$2::jsonb,$3,$4::jsonb,$5)'])need('lib/db.ts',token,'Restore server-side');
+for(const token of ['p_privacy_tombstones jsonb',"INSERT INTO privacy_requests(subject_hash,identity_type,action,matched_inquiries,created_at,last_applied_at)",'privacy_tombstones_merged'])need('sql/schema.sql',token,'Restore transacional de privacidade');
+for(const token of ['verified.privacyTombstones','disaster_recovery'])need('app/api/admin/restore/route.ts',token,'Planejamento restore');
+for(const token of ['privacyTombstones','marques-catalog-v8','privacy_requests'])need('scripts/backup-db.mjs',token,'Backup CLI');
+for(const token of ['verified.privacyTombstones','mergePrivacyTombstones','pronargs=5'])need('scripts/restore-db.mjs',token,'Restore CLI');
+const pkg=JSON.parse(read('package.json'));if(!String(pkg.scripts?.['check:privacy-dr']||'').includes('privacy-disaster-recovery-self-test.mjs'))failures.push('check:privacy-dr ausente/incompleto');
+for(const token of ['EXPECTED_SCHEMA_VERSION=platformContract.schemaVersion'])need('lib/release.ts',token,'Release V6.34');need('scripts/release-manifest.mjs','expected_schema:platform.schemaVersion','Manifesto usa schema central');need('scripts/deploy-gate.mjs','>=expectedSchema','Deploy gate usa schema central');need('.github/workflows/ci.yml','npm run check:privacy-dr','CI disaster recovery');
+if(failures.length){console.error('Privacy Disaster Recovery Contract falhou:\n- '+failures.join('\n- '));process.exit(1);}console.log('Privacy Disaster Recovery Contract: OK — backup V8/V9, tombstones embutidas e merge transacional protegidos.');

@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const failures=[];const read=f=>fs.readFileSync(f,'utf8');
+const helper=read('lib/backup-signature.ts'),backup=read('lib/backup-restore.ts'),backupRoute=read('app/api/admin/backup/route.ts'),restoreRoute=read('app/api/admin/restore/route.ts'),backupCli=read('scripts/backup-db.mjs'),restoreCli=read('scripts/restore-db.mjs'),verify=read('scripts/verify-backup.mjs'),env=read('.env.example'),preflight=read('scripts/check-env.mjs'),pkg=JSON.parse(read('package.json')),ci=read('.github/workflows/ci.yml');
+for(const token of ['marques-backup-signature-v1','createHmac','hmac-sha256','BACKUP_SIGNING_SECRET','BACKUP_SIGNING_PREVIOUS_SECRET'])if(!helper.includes(token))failures.push(`helper sem ${token}`);
+for(const token of ['verifyBackupSignature','BACKUP_SIGNATURE_REQUIRED','BACKUP_SIGNATURE_INVALID','authenticity'])if(!backup.includes(token))failures.push(`verificador sem ${token}`);
+if(!backupRoute.includes('createBackupSignature')||!backupRoute.includes("'x-backup-authenticity':'hmac-sha256'"))failures.push('backup do Admin não assina/expoõe autenticidade');
+if(!restoreRoute.includes("requireAuthenticity:process.env.NODE_ENV==='production'"))failures.push('restore HTTP não exige autenticidade em produção');
+if(!backupCli.includes('createBackupSignature'))failures.push('db:backup não assina');
+if(!restoreCli.includes('requireAuthenticity:apply'))failures.push('db:restore apply não exige autenticidade');
+if(!verify.includes('--require-signature')||!verify.includes('verifyBackupText'))failures.push('backup:verify não suporta prova obrigatória');
+for(const token of ['BACKUP_SIGNING_SECRET=','BACKUP_SIGNING_PREVIOUS_SECRET=','BACKUP_SIGNING_KEY_ID='])if(!env.includes(token))failures.push(`.env.example sem ${token}`);
+if(!preflight.includes("backupSigningSecret.length<32")||!preflight.includes("backupSigningPreviousSecret"))failures.push('preflight não protege chave/rotação');
+if(!String(pkg.scripts?.['check:backup-auth']||'').includes('backup-authenticity-self-test'))failures.push('script check:backup-auth ausente');
+if(!ci.includes('npm run check:backup-auth'))failures.push('CI sem check:backup-auth');
+if(failures.length){console.error('Backup Authenticity Contract falhou:\n- '+failures.join('\n- '));process.exit(1);}console.log('Backup Authenticity Contract: OK — HMAC, rotação e restore autenticado protegidos.');

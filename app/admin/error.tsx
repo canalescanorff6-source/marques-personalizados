@@ -1,0 +1,2 @@
+'use client';
+export default function AdminError({error,reset}:{error:Error&{digest?:string};reset:()=>void}){return <main className="state-page"><div><div className="eyebrow">Painel administrativo</div><h1>Não foi possível carregar o painel.</h1><p>Confira a conexão com o Neon e tente novamente. Nenhuma alteração foi enviada nesta tela.</p>{error.digest&&<small>Referência técnica: {error.digest}</small>}<button type="button" className="btn btn-primary" onClick={reset}>Tentar novamente</button></div></main>;}

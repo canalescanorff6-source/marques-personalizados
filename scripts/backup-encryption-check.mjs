@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const failures=[];const read=f=>fs.readFileSync(f,'utf8');
+const helper=read('lib/backup-encryption.ts'),backupRoute=read('app/api/admin/backup/route.ts'),restoreRoute=read('app/api/admin/restore/route.ts'),backupCli=read('scripts/backup-db.mjs'),restoreCli=read('scripts/restore-db.mjs'),verify=read('scripts/verify-backup.mjs'),preflight=read('scripts/check-env.mjs'),env=read('.env.example'),pkg=JSON.parse(read('package.json')),ci=read('.github/workflows/ci.yml');
+for(const token of ['marques-backup-encrypted-v1','aes-256-gcm','hkdfSync','randomBytes(16)','randomBytes(12)','setAAD','setAuthTag','BACKUP_ENCRYPTION_SECRET','BACKUP_ENCRYPTION_PREVIOUS_SECRET'])if(!helper.includes(token))failures.push(`helper sem ${token}`);
+if(!backupRoute.includes('encryptBackupText')||!backupRoute.includes("'x-backup-encryption':'aes-256-gcm'"))failures.push('backup Admin não criptografa');
+if(!restoreRoute.includes("decryptBackupText(raw,{requireEncryption:process.env.NODE_ENV==='production'})"))failures.push('restore HTTP não exige envelope em produção');
+if(!backupCli.includes('encryptBackupText'))failures.push('db:backup não criptografa');
+if(!restoreCli.includes('requireEncryption:apply'))failures.push('db:restore apply não exige criptografia');
+if(!verify.includes('--require-encryption')||!verify.includes('--strict')||!verify.includes('decryptBackupText'))failures.push('backup:verify não valida envelope forte');
+for(const token of ['BACKUP_ENCRYPTION_SECRET=','BACKUP_ENCRYPTION_PREVIOUS_SECRET=','BACKUP_ENCRYPTION_KEY_ID='])if(!env.includes(token))failures.push(`.env.example sem ${token}`);
+if(!preflight.includes('backupEncryptionSecret.length<32')||!preflight.includes('backupEncryptionPreviousSecret'))failures.push('preflight sem chave de criptografia/rotação');
+if(!String(pkg.scripts?.['check:backup-encryption']||'').includes('backup-encryption-self-test'))failures.push('check:backup-encryption ausente');
+if(!ci.includes('npm run check:backup-encryption'))failures.push('CI sem check:backup-encryption');
+if(failures.length){console.error('Backup Encryption Contract falhou:\n- '+failures.join('\n- '));process.exit(1);}console.log('Backup Encryption Contract: OK — AES-256-GCM, HKDF, rotação e restore cifrado protegidos.');

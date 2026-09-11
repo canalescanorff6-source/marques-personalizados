@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const errors=[];
+const read=f=>fs.readFileSync(f,'utf8');
+const required=['lib/health-policy.ts','lib/release.ts','scripts/deploy-gate.mjs','scripts/release-manifest.mjs','scripts/dependency-failure-self-test.mjs','.github/workflows/deploy-gate.yml'];for(const f of required)if(!fs.existsSync(f))errors.push(`Arquivo ausente: ${f}`);
+const health=read('app/api/health/route.ts');for(const token of ["mode==='live'","mode==='deep'",'timedProbe','probeStorage','healthDecision','EXPECTED_SCHEMA_VERSION','getReleaseInfo','status:ok?200:503'])if(!health.includes(token))errors.push(`Health sem contrato: ${token}`);
+const policy=read('lib/health-policy.ts');for(const token of ['readinessOk','deepOk','storage.required','partial-config','PROBE_TIMEOUT'])if(!policy.includes(token))errors.push(`Health policy sem: ${token}`);
+const storage=read('lib/storage.ts');for(const token of ['S3_REQUIRED','partial','probeStorage','ListObjectsV2Command','timedProbe'])if(!storage.includes(token))errors.push(`Storage probe sem: ${token}`);
+const gate=read('scripts/deploy-gate.mjs');for(const token of ['/api/health?mode=live','/api/health?mode=deep','--release=','--require-storage','Release consistente entre probes','Rollback recomendado'])if(!gate.includes(token))errors.push(`Deploy gate sem: ${token}`);
+const operations=read('components/admin/OperationsCenter.tsx');for(const token of ['data.storage','data.release.id','Storage online'])if(!operations.includes(token))errors.push(`Central de Operação sem: ${token}`);
+const docker=read('Dockerfile');if(!docker.includes('/api/health?mode=live'))errors.push('Docker HEALTHCHECK deve usar liveness, não dependências externas.');
+const start=read('scripts/start.mjs');for(const token of ['SIGTERM','SIGINT','SIGKILL'])if(!start.includes(token))errors.push(`start.mjs sem encerramento gracioso: ${token}`);
+const ci=read('.github/workflows/ci.yml');if(!ci.includes('npm run check:resilience'))errors.push('CI sem check:resilience');
+const env=read('.env.example');for(const key of ['APP_RELEASE_ID=','APP_RELEASE_COMMIT=','APP_DEPLOYED_AT=','S3_REQUIRED='])if(!env.includes(key))errors.push(`.env.example sem ${key}`);
+if(errors.length){console.error(`Deploy Resilience Contract: ${errors.length} problema(s)`);for(const e of errors)console.error(`- ${e}`);process.exit(1);}console.log('Deploy Resilience Contract: OK.');

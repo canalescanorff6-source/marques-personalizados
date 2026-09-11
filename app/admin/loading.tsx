@@ -1,0 +1,1 @@
+export default function AdminLoading(){return <main className="admin-shell"><div className="container admin-loading"><div className="skeleton skeleton-line wide"/><div className="skeleton skeleton-line"/><div className="admin-kpis">{Array.from({length:6}).map((_,i)=><article key={i} className="skeleton"/>)}</div><div className="skeleton admin-loading-panel"/></div></main>;}

@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const errors=[];const read=file=>fs.readFileSync(file,'utf8');const need=(file,token,label)=>{if(!read(file).includes(token))errors.push(`${label}: ${token}`);};
+for(const file of ['lib/privacy.ts','app/api/admin/privacy/route.ts','components/admin/PrivacyCenter.tsx','sql/schema.sql','lib/db.ts','app/api/admin/restore/route.ts','scripts/restore-db.mjs'])if(!fs.existsSync(file))errors.push(`Arquivo ausente: ${file}`);
+for(const token of ['anonymized_at timestamptz','CREATE TABLE IF NOT EXISTS privacy_requests','marques_anonymize_privacy_subject','idx_inquiries_privacy_email','idx_inquiries_privacy_whatsapp','DELETE FROM admin_restore_snapshots'])need('sql/schema.sql',token,'Schema de privacidade');
+for(const token of ['PRIVACY_HASH_SECRET','createHmac','sanitizeRestorePayloadPrivacy','anonymizeInquiryRecord'])need('lib/privacy.ts',token,'Núcleo criptográfico');
+for(const token of ['hasRecentAdminReauthentication','sameOriginRequest','protectedRateLimit','ANONIMIZAR','privacy_export','privacy_anonymize'])need('app/api/admin/privacy/route.ts',token,'API de privacidade');
+for(const token of ['Privacidade','PrivacyCenter','privacidade'])need('components/AdminDashboard.tsx',token,'Integração Admin');
+for(const token of ['prepareBusinessRestorePayloadForSafety','privacyWarnings','effectivePlanHash'])need('app/api/admin/restore/route.ts',token,'Restore protegido');
+for(const token of ['sanitizeRestorePayloadPrivacy','privacy_requests'])need('scripts/restore-db.mjs',token,'Restore CLI protegido');
+for(const token of ['privacy_anonymized_at','privacy_requests','privacyOk','version:ok?platformContract.schemaVersion'])need('lib/db.ts',token,'Runtime schema');
+const pkg=JSON.parse(read('package.json'));if(!String(pkg.scripts?.['check:privacy']||'').includes('privacy-lifecycle-self-test.mjs'))errors.push('check:privacy incompleto');
+for(const token of ['EXPECTED_SCHEMA_VERSION=platformContract.schemaVersion'])need('lib/release.ts',token,'Release V6.34');
+need('scripts/release-manifest.mjs','expected_schema:platform.schemaVersion','Manifesto usa schema central');need('scripts/deploy-gate.mjs','>=expectedSchema','Deploy gate usa schema central');need('.github/workflows/ci.yml','npm run check:privacy','CI privacidade');need('.env.example','PRIVACY_HASH_SECRET=','Env privacidade');
+if(errors.length){console.error(`Privacy lifecycle contract: ${errors.length} problema(s)`);for(const e of errors)console.error(`- ${e}`);process.exit(1);}console.log('Privacy lifecycle contract: OK.');

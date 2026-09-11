@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {assertDistinctStorageTargets,isPrivateOrLocalStorageHost,normalizeExternalDrEndpoint,normalizeStorageBucket,normalizeStorageTransportEndpoint} from '../lib/dr-storage-policy.ts';
+assert.equal(normalizeStorageTransportEndpoint('https://s3.example.com/','S3_ENDPOINT'),'https://s3.example.com');
+assert.equal(normalizeExternalDrEndpoint('https://vault.example.com','BACKUP_S3_ENDPOINT'),'https://vault.example.com');
+assert.equal(normalizeStorageBucket(' media-bucket ','S3_BUCKET'),'media-bucket');
+assert.equal(isPrivateOrLocalStorageHost('127.0.0.1'),true);assert.equal(isPrivateOrLocalStorageHost('10.2.3.4'),true);assert.equal(isPrivateOrLocalStorageHost('172.20.1.2'),true);assert.equal(isPrivateOrLocalStorageHost('192.168.1.10'),true);assert.equal(isPrivateOrLocalStorageHost('100.64.1.2'),true);assert.equal(isPrivateOrLocalStorageHost('localhost'),true);assert.equal(isPrivateOrLocalStorageHost('vault.example.com'),false);
+assert.throws(()=>normalizeStorageTransportEndpoint('http://s3.example.com','S3_ENDPOINT'));
+assert.throws(()=>normalizeExternalDrEndpoint('https://127.0.0.1','BACKUP_S3_ENDPOINT'));
+assert.throws(()=>normalizeExternalDrEndpoint('https://user:pass@vault.example.com','BACKUP_S3_ENDPOINT'));
+assert.throws(()=>assertDistinctStorageTargets({endpoint:'https://s3.example.com',bucket:'same'},{endpoint:'https://s3.example.com/',bucket:'same'},'TEST_TARGETS'));
+assert.doesNotThrow(()=>assertDistinctStorageTargets({endpoint:'https://s3.example.com',bucket:'a'},{endpoint:'https://s3.example.com',bucket:'b'},'TEST_TARGETS'));
+console.log('DR Storage Self-test: OK — TLS, destino externo e isolamento de buckets verificados.');

@@ -1,0 +1,7 @@
+import { isAdmin } from '@/lib/auth';
+import { createCategoryIdempotent, logAdminAction } from '@/lib/db';
+import { categorySchema } from '@/lib/validation';
+import { readJsonBody, sameOriginRequest } from '@/lib/security';
+import { serverFailure } from '@/lib/observability';
+import { idempotencyHttpError, requireAdminCreateIdempotencyKey } from '@/lib/idempotency';
+export async function POST(request:Request){if(!(await isAdmin()))return Response.json({error:'Não autorizado.'},{status:401});if(!sameOriginRequest(request))return Response.json({error:'Origem inválida.'},{status:403});try{const idempotencyKey=requireAdminCreateIdempotencyKey(request);const body=await readJsonBody(request,24_000);const parsed=categorySchema.safeParse(body);if(!parsed.success)return Response.json({error:'Dados da categoria inválidos.',details:parsed.error.flatten()},{status:400});const {category,created}=await createCategoryIdempotent(parsed.data,idempotencyKey);if(created)await logAdminAction('create','category',category.id,`Categoria criada: ${category.name}`,{requestId:idempotencyKey});return Response.json({category,deduplicated:!created},{status:created?201:200});}catch(e){const idem=idempotencyHttpError(e);if(idem)return Response.json({error:idem.message},{status:idem.status});const msg=(e instanceof Error?e.message:'').toLowerCase();if(msg.includes('unique')||msg.includes('duplicate'))return Response.json({error:'Nome ou slug já utilizado.'},{status:409});return await serverFailure('admin.categories.create',e);}}

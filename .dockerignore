@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+.env*
+backups
+*.zip
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+.DS_Store

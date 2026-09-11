@@ -1,0 +1,55 @@
+name: Verify deployment or rollback target
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origem HTTPS publicada (ex.: https://catalogo.exemplo.com)'
+        required: true
+        type: string
+      expected_release:
+        description: 'APP_RELEASE_ID esperado'
+        required: true
+        type: string
+      previous_release:
+        description: 'Release anterior conhecido como saudável (opcional; usado na orientação de rollback)'
+        required: false
+        type: string
+      require_storage:
+        description: 'Falhar se S3 não estiver configurado e saudável'
+        required: false
+        default: false
+        type: boolean
+      run_load_smoke:
+        description: 'Executar smoke leve de concorrência após o gate'
+        required: false
+        default: true
+        type: boolean
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Verify deployed release
+        shell: bash
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          EXPECTED_RELEASE: ${{ inputs.expected_release }}
+          PREVIOUS_RELEASE: ${{ inputs.previous_release }}
+          REQUIRE_STORAGE: ${{ inputs.require_storage }}
+          RUN_LOAD_SMOKE: ${{ inputs.run_load_smoke }}
+        run: |
+          args=("$BASE_URL" "--release=$EXPECTED_RELEASE" "--samples=4")
+          if [ -n "$PREVIOUS_RELEASE" ]; then args+=("--previous-release=$PREVIOUS_RELEASE"); fi
+          if [ "$REQUIRE_STORAGE" = "true" ]; then args+=("--require-storage"); fi
+          node scripts/deploy-gate.mjs "${args[@]}"
+          if [ "$RUN_LOAD_SMOKE" = "true" ]; then
+            node scripts/load-smoke.mjs "$BASE_URL" --requests=24 --concurrency=4 --p95=3000
+          fi

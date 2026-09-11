@@ -1,0 +1,18 @@
+'use client';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Instagram, Menu, MessageCircle, Search } from 'lucide-react';
+import type { SiteSettings } from '@/lib/db';
+import { whatsappUrl } from '@/lib/links';
+import GlobalSearch from './GlobalSearch';
+import SafeImage from './SafeImage';
+import { QuoteListTrigger } from './QuoteListProvider';
+
+export default function Header({settings}:{settings:SiteSettings}){
+  const [compact,setCompact]=useState(false);
+  useEffect(()=>{const onScroll=()=>setCompact(window.scrollY>24);onScroll();window.addEventListener('scroll',onScroll,{passive:true});return()=>window.removeEventListener('scroll',onScroll);},[]);
+  const wa=whatsappUrl(settings.whatsapp_number,'Olá! Vim pelo catálogo e gostaria de fazer um orçamento.');
+  const now=Date.now();const campaignStart=settings.announcement_start_at?new Date(settings.announcement_start_at).getTime():null;const campaignEnd=settings.announcement_end_at?new Date(settings.announcement_end_at).getTime():null;const campaignLive=Boolean(settings.announcement)&&(!campaignStart||campaignStart<=now)&&(!campaignEnd||campaignEnd>now);
+  const announcementContent=settings.announcement_link?(settings.announcement_link.startsWith('/')?<Link href={settings.announcement_link}>{settings.announcement}<span>Ver mais →</span></Link>:<a href={settings.announcement_link} target="_blank" rel="noreferrer">{settings.announcement}<span>Ver mais →</span></a>):<span>{settings.announcement}</span>;
+  return <>{campaignLive&&<div className="announcement">{announcementContent}</div>}<header className={`site-header ${compact?'is-compact':''}`}><div className="container nav"><Link className="brand" href="/" aria-label={settings.brand_name}><span className={`brand-mark ${settings.logo_url?'brand-logo':''}`}>{settings.logo_url?<SafeImage src={settings.logo_url} alt=""/>:<b>{settings.brand_initial||'M'}</b>}</span><span className="brand-copy"><strong>{settings.brand_name}</strong><small>papelaria personalizada</small></span></Link><nav className="nav-links" aria-label="Principal"><Link href="/#catalogo">Catálogo</Link><Link href="/#colecoes">Coleções</Link><Link href="/#concierge">Concierge</Link><Link href="/#sobre">Ateliê</Link><Link href="/#processo">Processo</Link><QuoteListTrigger compact/>{settings.instagram_url&&settings.instagram_url!=='#'&&<a className="nav-social" href={settings.instagram_url} target="_blank" rel="noreferrer" aria-label="Instagram"><Instagram size={17}/></a>}{wa&&<a className="btn btn-primary nav-cta" href={wa} target="_blank" rel="noreferrer"><MessageCircle size={17}/> Orçamento</a>}</nav><GlobalSearch/><div className="mobile-header-tools"><button type="button" className="mobile-search-trigger" onClick={()=>window.dispatchEvent(new CustomEvent('marques:open-search'))} aria-label="Buscar"><Search size={19}/></button><QuoteListTrigger compact/><details className="mobile-nav"><summary aria-label="Abrir menu"><Menu size={21}/><span>Menu</span></summary><div><Link href="/#catalogo">Catálogo</Link><Link href="/#colecoes">Coleções</Link><Link href="/#concierge">Concierge</Link><Link href="/#sobre">Ateliê</Link><Link href="/#processo">Processo</Link><Link href="/#contato">Contato</Link><Link href="/links">Links & redes</Link>{settings.instagram_url&&settings.instagram_url!=='#'&&<a href={settings.instagram_url} target="_blank" rel="noreferrer"><Instagram size={17}/> Instagram</a>}{wa&&<a href={wa} target="_blank" rel="noreferrer"><MessageCircle size={17}/> Solicitar orçamento</a>}</div></details></div></div></header>{wa&&<a className="floating-wa" href={wa} target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp"><MessageCircle size={22}/><span>Orçamento</span></a>}</>;
+}

@@ -1,0 +1,1 @@
+export default function ProductLoading(){return <main className="product-page product-loading"><div className="container product-page-grid"><div className="skeleton product-loading-media"/><div><div className="skeleton skeleton-line"/><div className="skeleton skeleton-line wide"/><div className="skeleton product-loading-copy"/></div></div></main>;}

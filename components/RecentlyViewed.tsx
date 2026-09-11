@@ -1,0 +1,8 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { ArrowUpRight, History } from 'lucide-react';
+import SafeImage from './SafeImage';
+import { fetchJson } from '@/lib/client';
+const KEY='marques-vistos-recentemente-v1';
+type Recent={product_id:string;slug:string;name:string;category:string;image_url:string;quantity:number;min_quantity:number};
+export default function RecentlyViewed(){const [items,setItems]=useState<Recent[]>([]);useEffect(()=>{const load=async()=>{try{const raw=JSON.parse(localStorage.getItem(KEY)||'[]');const slugs=(Array.isArray(raw)?raw:[]).filter((x:unknown):x is string=>typeof x==='string').slice(0,6);if(!slugs.length){setItems([]);return;}const q=slugs.map(slug=>`${slug}:1`).join(',');const data=await fetchJson<{items:Recent[]}>(`/api/quote-list?items=${encodeURIComponent(q)}`,{},8000);setItems(Array.isArray(data.items)?data.items:[]);}catch{}};load();window.addEventListener('marques:recent-view',load);return()=>window.removeEventListener('marques:recent-view',load);},[]);if(!items.length)return null;return <section className="recent-section"><div className="container"><div className="recent-head"><div><div className="eyebrow"><History size={14}/> Continue explorando</div><h2>Vistos recentemente.</h2></div><a href="#catalogo" className="text-link">Ver catálogo <ArrowUpRight size={15}/></a></div><div className="recent-grid">{items.slice(0,4).map(item=><a href={`/catalogo/${item.slug}`} key={item.product_id}><div><SafeImage src={item.image_url} alt={item.name} loading="lazy" decoding="async"/></div><small>{item.category}</small><strong>{item.name}</strong><ArrowUpRight size={16}/></a>)}</div></div></section>;}

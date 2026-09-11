@@ -1,0 +1,2 @@
+'use client';
+export default function CategoryError({reset}:{error:Error&{digest?:string};reset:()=>void}){return <main className="state-page"><div><div className="eyebrow">Coleção</div><h1>Não foi possível carregar esta coleção.</h1><p>Tente novamente ou volte para a página inicial.</p><div className="inline-actions"><button type="button" className="btn btn-primary" onClick={reset}>Tentar novamente</button><a className="btn" href="/">Ir para a home</a></div></div></main>;}

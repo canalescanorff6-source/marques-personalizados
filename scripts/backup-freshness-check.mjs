@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const errors=[];const read=f=>fs.readFileSync(f,'utf8');const need=(f,t,l)=>{if(!read(f).includes(t))errors.push(`${l}: ${t}`)};
+for(const f of ['lib/backup-freshness.ts','scripts/offsite-backup.mjs','app/api/health/route.ts','app/api/admin/operations/route.ts','components/admin/OperationsCenter.tsx','sql/schema.sql'])if(!fs.existsSync(f))errors.push(`Arquivo ausente: ${f}`);
+for(const t of ['offsite_backup_receipts','offsite_backup_receipts_append_only','idx_offsite_backup_receipts_verified'])need('sql/schema.sql',t,'Schema freshness');
+for(const t of ['OFFSITE_RECEIPT_OK','destinationFingerprint','INSERT INTO offsite_backup_receipts','verified_at'])need('scripts/offsite-backup.mjs',t,'Job offsite');
+for(const t of ['getOffsiteBackupFreshness','backup_freshness'])need('app/api/health/route.ts',t,'Health');
+for(const t of ['backup_freshness','Backup offsite recente'])need('components/admin/OperationsCenter.tsx',t,'Central de Operação');
+for(const t of ['BACKUP_OFFSITE_MAX_AGE_HOURS=36'])need('.env.example',t,'Env');
+for(const t of ['--require-backup-fresh','Backup offsite recente'])need('scripts/deploy-gate.mjs',t,'Deploy gate');
+need('.github/workflows/ci.yml','npm run check:backup-freshness','CI');need('.github/workflows/offsite-backup.yml','Verify current schema readiness','Workflow');
+const pkg=JSON.parse(read('package.json'));if(!String(pkg.scripts?.['check:backup-freshness']||'').includes('backup-freshness-self-test'))errors.push('check:backup-freshness incompleto');
+if(errors.length){console.error(`Backup Freshness Check: ${errors.length} problema(s)`);for(const e of errors)console.error(`- ${e}`);process.exit(1)}console.log('Backup Freshness Check: OK');

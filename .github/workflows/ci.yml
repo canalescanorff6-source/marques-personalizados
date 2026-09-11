@@ -1,0 +1,164 @@
+name: CI
+permissions:
+  contents: read
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Require reproducible dependency lock
+        run: test -f package-lock.json || (echo "::error::package-lock.json obrigatório. Execute Generate package lock e faça commit do arquivo." && exit 1)
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Security audit
+        run: npm audit --audit-level=high
+      - name: Public URL safety contract
+        run: npm run check:url-safety
+      - name: Platform single-source contract
+        run: npm run check:platform
+      - name: Supply-chain contract
+        run: npm run check:supply-chain
+      - name: Release identity contract
+        run: npm run check:release
+      - name: Documentation sync contract
+        run: npm run check:docs
+      - name: Runtime contract
+        run: npm run check:runtime
+      - name: Installed dependency contract
+        run: npm run check:deps
+      - name: Project structure
+        run: npm run check:project
+      - name: Acceptance guard
+        run: npm run check:acceptance
+      - name: Accessibility static guard
+        run: npm run check:a11y
+      - name: Schema contract
+        run: npm run check:schema
+      - name: Campaign attribution integrity
+        run: npm run check:campaigns
+      - name: Type-safety contract
+        run: npm run check:typesafety
+      - name: Local module surface contract
+        run: npm run check:module-surface
+      - name: HTTP request boundary and Admin CSP contract
+        run: npm run check:http-boundary
+      - name: Optimistic concurrency contract
+        run: npm run check:concurrency
+      - name: Replay-safe media and public inquiry contract
+        run: npm run check:replay-safety
+      - name: Media lifecycle, deletion tombstone and restore repair contract
+        run: npm run check:media-lifecycle
+      - name: Admin create idempotency and selective retry contract
+        run: npm run check:idempotency
+      - name: API security contract
+        run: npm run check:security
+      - name: Revocable admin sessions contract
+        run: npm run check:sessions
+      - name: Admin MFA contract
+        run: npm run check:mfa
+      - name: MFA recovery and device alerts contract
+        run: npm run check:recovery
+      - name: Critical admin step-up and external alerts contract
+        run: npm run check:critical
+      - name: Observability, audit and backup resilience contract
+        run: npm run check:observability
+      - name: Backup authenticity contract
+        run: npm run check:backup-auth
+      - name: Backup encryption contract
+        run: npm run check:backup-encryption
+      - name: Backup V9 media tombstone contract
+        run: npm run check:backup-v9
+      - name: Safe backup restore contract
+        run: npm run check:restore
+      - name: Deploy resilience and dependency failure contract
+        run: npm run check:resilience
+      - name: Concurrency and performance contract
+        run: npm run check:performance
+      - name: Commercial resilience and CRM concurrency contract
+        run: npm run check:commercial
+      - name: Scalable CRM pagination and global analytics contract
+        run: npm run check:scalable-crm
+      - name: CRM global search and customer intelligence contract
+        run: npm run check:crm-search
+      - name: Scalable production and post-sale contract
+        run: npm run check:production-scale
+      - name: Scalable agenda and operational calendar contract
+        run: npm run check:agenda-scale
+      - name: Global reactivation and annual lifecycle contract
+        run: npm run check:reactivation
+      - name: Tamper-evident audit chain contract
+        run: npm run check:audit-chain
+      - name: Privacy and data lifecycle contract
+        run: npm run check:privacy
+      - name: Privacy-safe disaster recovery contract
+        run: npm run check:privacy-dr
+      - name: Disaster-recovery storage isolation contract
+        run: npm run check:dr-storage
+      - name: Automated offsite backup contract
+        run: npm run check:offsite-backup
+      - name: Backup freshness and recovery readiness contract
+        run: npm run check:backup-freshness
+      - name: Recovery drill contract
+        run: npm run check:recovery-drill
+      - name: Media disaster recovery contract
+        run: npm run check:media-dr
+      - name: Media recovery drill contract
+        run: npm run check:media-recovery-drill
+      - name: Guaranteed critical audit contract
+        run: npm run check:critical-audit
+      - name: Public flow contract
+        run: npm run check:public-flow
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Prepare E2E credentials
+        shell: bash
+        env:
+          E2E_ADMIN_PASSWORD: Marques-E2E-Only-Password-2026!
+        run: |
+          npm run --silent admin:hash-password -- "$E2E_ADMIN_PASSWORD" >> "$GITHUB_ENV"
+      - name: Start production server for E2E
+        shell: bash
+        env:
+          PORT: 3100
+          SESSION_SECRET: marques-e2e-session-secret-only-for-ci-2026-very-long
+          PRIVACY_HASH_SECRET: marques-e2e-privacy-secret-only-for-ci-2026-very-long
+          BACKUP_SIGNING_SECRET: marques-e2e-backup-signing-secret-only-for-ci-2026-long
+          BACKUP_SIGNING_KEY_ID: ci-e2e
+          BACKUP_ENCRYPTION_SECRET: marques-e2e-backup-encryption-secret-only-for-ci-2026-long
+          BACKUP_ENCRYPTION_KEY_ID: ci-e2e
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
+          NEXT_PUBLIC_WHATSAPP_NUMBER: 5598999999999
+          ADMIN_TOTP_SECRET: GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ
+          MARQUES_CI_STATELESS_AUTH: '1'
+        run: |
+          npm start > /tmp/marques-e2e.log 2>&1 &
+          echo $! > /tmp/marques-e2e.pid
+      - name: HTTP functional E2E
+        env:
+          E2E_ADMIN_PASSWORD: Marques-E2E-Only-Password-2026!
+          E2E_ADMIN_TOTP_SECRET: GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ
+        run: npm run check:e2e -- http://127.0.0.1:3100
+      - name: Local concurrency smoke
+        run: npm run check:load -- http://127.0.0.1:3100 --requests=16 --concurrency=4 --p95=5000
+      - name: E2E server log on failure
+        if: failure()
+        run: cat /tmp/marques-e2e.log || true
+      - name: Stop E2E server
+        if: always()
+        run: if [ -f /tmp/marques-e2e.pid ]; then kill "$(cat /tmp/marques-e2e.pid)" || true; fi

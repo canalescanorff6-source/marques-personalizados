@@ -1,0 +1,1 @@
+export default function CategoryLoading(){return <main className="category-page"><div className="container"><div className="skeleton skeleton-line"/><div className="skeleton skeleton-line wide"/><div className="premium-product-grid">{Array.from({length:6}).map((_,i)=><div className="skeleton" style={{height:360}} key={i}/>)}</div></div></main>;}

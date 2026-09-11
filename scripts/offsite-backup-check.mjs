@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const failures=[];const read=f=>fs.readFileSync(f,'utf8');const need=(f,t,m)=>{if(!read(f).includes(t))failures.push(`${m}: ${t}`);};
+for(const f of ['scripts/offsite-backup.mjs','lib/offsite-backup.ts','lib/dr-storage-policy.ts','.github/workflows/offsite-backup.yml','scripts/check-env.mjs','.env.example'])if(!fs.existsSync(f))failures.push(`Arquivo ausente: ${f}`);
+for(const t of ['PutObjectCommand','HeadObjectCommand','GetObjectCommand','ContentMD5','envelope-sha256','content-sha256','backup-contract','schema-version','databaseBackupRoot','ListObjectsV2Command','DeleteObjectsCommand','BACKUP_OUTPUT_DIR','verify-backup.mjs','--strict','Backup recém-gerado falhou na verificação strict','leitura remota diverge'])need('scripts/offsite-backup.mjs',t,'Uploader offsite');
+for(const t of ['databaseBackupRoot','isDatabaseBackupObjectKey','isLegacyDatabaseBackupObjectKey','normalizeOffsiteRetentionDays','shouldDeleteOffsiteObject','!isDatabaseBackupObjectKey(key,prefix)','3650'])need('lib/offsite-backup.ts',t,'Retenção/namespace seguro');
+for(const t of ['BACKUP_OFFSITE_ENABLED=','BACKUP_S3_ENDPOINT=','BACKUP_S3_BUCKET=','BACKUP_OFFSITE_RETENTION_DAYS='])need('.env.example',t,'Env offsite');
+for(const t of ['Backup offsite deve usar bucket separado','BACKUP_OFFSITE_RETENTION_DAYS deve ser inteiro entre 7 e 3650','destino externo'])need('scripts/check-env.mjs',t,'Preflight offsite');
+for(const t of ['schedule:','BACKUP_OFFSITE_ENABLED','backup:offsite','BACKUP_S3_BUCKET','BACKUP_ENCRYPTION_SECRET','BACKUP_SIGNING_SECRET','PRIVACY_HASH_SECRET'])need('.github/workflows/offsite-backup.yml',t,'Workflow offsite');
+const workflow=read('.github/workflows/offsite-backup.yml');if(/upload-artifact/i.test(workflow))failures.push('Workflow offsite não deve copiar backup para GitHub Artifact');
+need('.github/workflows/ci.yml','npm run check:offsite-backup','CI offsite');need('.github/workflows/ci.yml','npm run check:dr-storage','CI DR storage');
+const pkg=JSON.parse(read('package.json'));if(!String(pkg.scripts?.['check:offsite-backup']||'').includes('offsite-backup-self-test'))failures.push('check:offsite-backup ausente');if(!String(pkg.scripts?.['backup:offsite']||'').includes('offsite-backup.mjs'))failures.push('backup:offsite ausente');
+if(failures.length){console.error('Offsite Backup Contract falhou:\n- '+failures.join('\n- '));process.exit(1);}console.log('Offsite Backup Contract: OK — database/ isolado, attestation pós-upload, retenção confinada e workflow agendado protegidos.');

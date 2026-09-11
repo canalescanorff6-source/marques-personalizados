@@ -1,0 +1,8 @@
+import { isAdmin } from '@/lib/auth';
+import { createSocialContentPlanIdempotent, getSocialContentPlans, logAdminAction } from '@/lib/db';
+import { serverFailure } from '@/lib/observability';
+import { idempotencyHttpError, requireAdminCreateIdempotencyKey } from '@/lib/idempotency';
+import { readJsonBody, sameOriginRequest } from '@/lib/security';
+import { socialContentPlanSchema } from '@/lib/validation';
+export async function GET(){if(!(await isAdmin()))return Response.json({error:'Não autorizado.'},{status:401});try{return Response.json({plans:await getSocialContentPlans()},{headers:{'cache-control':'private, no-store'}});}catch(e){return await serverFailure('admin.social-plan.list',e);}}
+export async function POST(request:Request){if(!(await isAdmin()))return Response.json({error:'Não autorizado.'},{status:401});if(!sameOriginRequest(request))return Response.json({error:'Origem inválida.'},{status:403});try{const idempotencyKey=requireAdminCreateIdempotencyKey(request);const body=await readJsonBody(request,16000);const parsed=socialContentPlanSchema.safeParse(body);if(!parsed.success)return Response.json({error:'Confira os dados do planejamento.',details:parsed.error.flatten()},{status:400});const {plan,created}=await createSocialContentPlanIdempotent(parsed.data,idempotencyKey);if(created)await logAdminAction('create','social_plan',plan.id,`Conteúdo planejado: ${plan.title}`,{requestId:idempotencyKey});return Response.json({plan,deduplicated:!created},{status:created?201:200});}catch(e){const idem=idempotencyHttpError(e);if(idem)return Response.json({error:idem.message},{status:idem.status});return await serverFailure('admin.social-plan.create',e);}}

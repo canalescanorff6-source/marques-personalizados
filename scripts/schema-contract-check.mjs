@@ -1,0 +1,123 @@
+import fs from 'node:fs';
+import { splitSqlStatements } from './sql-splitter.mjs';
+const schema=fs.readFileSync('sql/schema.sql','utf8');
+const normalized=schema.replace(/\s+/g,' ').toLowerCase();
+function assert(condition,message){if(!condition){console.error(`Schema contract: ${message}`);process.exitCode=1;}}
+function has(pattern){return pattern.test(normalized);}
+assert(has(/create table if not exists products\s*\(/),'tabela products ausente');
+assert(has(/category_id\s+uuid/),'products.category_id deve ser UUID');
+assert(has(/image_urls\s+text\[\]/),'products.image_urls deve ser TEXT[]');
+assert(has(/customization_fields\s+jsonb/),'products.customization_fields deve ser JSONB');
+assert(has(/publish_at\s+timestamp with time zone|publish_at\s+timestamptz/),'products.publish_at deve ter timezone');
+assert(has(/unpublish_at\s+timestamp with time zone|unpublish_at\s+timestamptz/),'products.unpublish_at deve ter timezone');
+assert(has(/create table if not exists request_rate_limits\s*\(/),'request_rate_limits ausente');
+assert(has(/key_hash\s+text/),'request_rate_limits.key_hash deve ser TEXT');
+assert(has(/expires_at\s+timestamp with time zone|expires_at\s+timestamptz/),'request_rate_limits.expires_at deve ter timezone');
+assert(has(/create table if not exists inquiry_activity\s*\(/),'tabela inquiry_activity ausente');
+assert(has(/inquiry_id\s+uuid/),'inquiry_activity.inquiry_id deve ser UUID');
+assert(normalized.includes('payment_status'),'inquiries.payment_status ausente');
+assert(normalized.includes('paid_cents'),'inquiries.paid_cents ausente');
+assert(has(/create index[^;]*inquiry_activity[^;]*created_at/),'índice de timeline do CRM ausente');
+assert(has(/create table if not exists admin_audit_log\s*\(/),'admin_audit_log ausente');
+assert(has(/create table if not exists admin_sessions\s*\(/),'admin_sessions ausente');
+for(const field of ['session_hash','device_label','user_agent_hash','ip_hash','last_seen_at','expires_at','mfa_verified_at','last_reauth_at','revoked_at'])assert(normalized.includes(field),`admin_sessions.${field} ausente`);
+assert(has(/create index[^;]*admin_sessions[^;]*expires_at/),'índice de sessões administrativas ausente');
+assert(has(/create table if not exists admin_mfa_used_steps\s*\(/),'admin_mfa_used_steps ausente');
+assert(has(/step\s+bigint\s+primary key/),'admin_mfa_used_steps.step deve ser BIGINT PRIMARY KEY');
+assert(has(/create index[^;]*admin_mfa_used_steps[^;]*used_at/),'índice de limpeza do replay TOTP ausente');
+assert(has(/create table if not exists admin_mfa_recovery_codes\s*\(/),'admin_mfa_recovery_codes ausente');
+assert(has(/code_hash\s+text\s+not null\s+unique/),'códigos de recuperação precisam de hash único');
+assert(has(/create table if not exists admin_known_devices\s*\(/),'admin_known_devices ausente');
+assert(has(/device_hash\s+text\s+not null\s+unique/),'dispositivos conhecidos precisam de hash único');
+assert(has(/create table if not exists admin_security_events\s*\(/),'admin_security_events ausente');
+assert(normalized.includes("auth_method text not null default 'password'"),'admin_sessions.auth_method ausente');
+assert(normalized.includes("device_hash text not null default ''"),'admin_sessions.device_hash ausente');
+assert(has(/create index[^;]*admin_security_events[^;]*acknowledged_at/),'índice de alertas não lidos ausente');
+assert(normalized.includes('critical_reauth')&&normalized.includes('critical_action')&&normalized.includes('security_webhook_failed'),'eventos de segurança V6.18 ausentes');
+assert(has(/create table if not exists operational_incidents\s*\(/),'operational_incidents ausente');
+for(const field of ['integrity_hash','actor_session_id','actor_device_hash','request_id'])assert(normalized.includes(field),`admin_audit_log.${field} ausente`);
+assert(normalized.includes('admin_audit_append_only'),'trigger append-only da auditoria ausente');
+assert(normalized.includes('admin_audit_set_integrity_hash'),'trigger de hash da auditoria ausente');
+assert(has(/create table if not exists admin_audit_chain_state\s*\(/),'admin_audit_chain_state ausente');
+for(const field of ['prev_integrity_hash','chain_version','marques_admin_audit_hash','admin_audit_chain_before_insert','admin_audit_chain_after_insert','idx_admin_audit_chain_version_id'])assert(normalized.includes(field),`cadeia de auditoria ausente: ${field}`);
+assert(has(/create index[^;]*operational_incidents[^;]*resolved_at/),'índice de incidentes abertos ausente');
+assert(has(/create table if not exists social_content_plans\s*\(/),'social_content_plans ausente');
+assert(has(/create table if not exists marketing_campaigns\s*\(/),'marketing_campaigns ausente');
+assert(normalized.includes('goal_revenue_cents'),'marketing_campaigns.goal_revenue_cents ausente');
+assert(normalized.includes('spend_cents'),'marketing_campaigns.spend_cents ausente');
+assert(has(/summary\s+text/),'admin_audit_log.summary deve ser TEXT');
+assert(has(/metadata\s+jsonb/),'admin_audit_log.metadata deve ser JSONB');
+assert(has(/create table if not exists site_settings\s*\(/),'site_settings ausente');
+for(const field of ['announcement_link','announcement_start_at','announcement_end_at','facebook_url','tiktok_url','pinterest_url','youtube_url','google_business_url','google_review_url','social_default_hashtags','bio_title','bio_description','monthly_sales_goal_cents'])assert(normalized.includes(field),`site_settings.${field} ausente`);
+assert(has(/create index[^;]*products[^;]*category_id/),'índice por category_id ausente');
+assert(has(/create index[^;]*products[^;]*price_cents/),'índice por price_cents ausente');
+assert(normalized.includes('marketing_campaign_slug_immutable'),'trigger de imutabilidade do slug de campanha ausente');
+for(const index of ['idx_products_public_stock_order','idx_inquiries_payment_created','idx_inquiries_production_created','idx_inquiries_source_created'])assert(normalized.includes(index),`índice de performance ausente: ${index}`);
+
+
+assert(normalized.includes('version bigint not null default 1'),'inquiries.version monotônica ausente');
+assert(normalized.includes('trg_inquiries_version_monotonic'),'trigger de versão monotônica do CRM ausente');
+assert(normalized.includes('trg_inquiries_commercial_guard'),'trigger de integridade comercial do CRM ausente');
+assert(normalized.includes('idx_inquiries_version'),'índice de versão do CRM ausente');
+assert(normalized.includes('idx_inquiries_delivered_history'),'índice de histórico entregue da produção ausente');
+assert(normalized.includes('idx_inquiries_post_sale_pending'),'índice de pós-venda pendente ausente');
+assert(normalized.includes('idx_inquiries_event_agenda'),'índice de eventos da agenda ausente');
+assert(normalized.includes('idx_inquiries_follow_up_agenda'),'índice de retornos da agenda ausente');
+assert(normalized.includes('repurchase_contacted_at timestamptz'),'inquiries.repurchase_contacted_at ausente');
+assert(normalized.includes('repurchase_contact_year integer'),'inquiries.repurchase_contact_year ausente');
+assert(normalized.includes('marques_anniversary_date'),'função de aniversário anual ausente');
+assert(normalized.includes('idx_inquiries_repurchase_event'),'índice de eventos para reativação ausente');
+assert(normalized.includes('idx_inquiries_repurchase_contact'),'índice de contato anual ausente');
+assert(normalized.includes('anonymized_at timestamptz'),'inquiries.anonymized_at ausente');
+assert(has(/create table if not exists privacy_requests\s*\(/),'privacy_requests ausente');
+for(const field of ['subject_hash','identity_type','matched_inquiries','last_applied_at','marques_anonymize_privacy_subject','idx_inquiries_privacy_email','idx_inquiries_privacy_whatsapp','idx_privacy_requests_applied'])assert(normalized.includes(field),`contrato de privacidade ausente: ${field}`);
+
+assert(normalized.includes('crm_payment_pending_with_value')&&normalized.includes('crm_payment_signal_invalid')&&normalized.includes('crm_payment_paid_invalid')&&normalized.includes('crm_production_requires_closed'),'códigos de invariantes comerciais ausentes');
+assert(has(/create table if not exists admin_restore_snapshots\s*\(/),'admin_restore_snapshots ausente');
+assert(normalized.includes('marques_restore_business_payload'),'função de restauração atômica ausente');
+assert(normalized.includes('p_privacy_tombstones jsonb'), 'restore não recebe vault de tombstones V6.33');
+assert(normalized.includes('insert into privacy_requests(subject_hash,identity_type,action,matched_inquiries,created_at,last_applied_at)'), 'restore não mescla tombstones antes do CRM');
+assert(normalized.includes("drop function if exists marques_restore_business_payload(jsonb,jsonb,text)"), 'assinatura antiga de 3 args do restore não é removida');
+assert(normalized.includes("drop function if exists marques_restore_business_payload(jsonb,jsonb,text,jsonb)"), 'assinatura antiga de 4 args do restore não é removida na migração V6.48');
+assert(normalized.includes("p_media_tombstone_mode text default 'merge'"), 'restore schema 26 não define modo merge/exact para tombstones de mídia');
+assert(has(/create table if not exists media_lifecycle_leases\s*\(/),'media_lifecycle_leases ausente');
+for(const field of ['storage_deleted_at timestamptz','last_operation text','attempt_count integer','last_attempt_at timestamptz','last_error_code text'])assert(normalized.includes(field),`tombstone lifecycle ausente: ${field}`);
+for(const token of ['idx_media_deletion_tombstones_pending','idx_media_lifecycle_leases_expires_at','marques_acquire_media_lease','marques_cancel_media_lease','marques_begin_media_delete','marques_complete_media_delete','marques_fail_media_delete','marques_begin_media_upload','marques_complete_media_upload','marques_fail_media_upload'])assert(normalized.includes(token),`lifecycle de mídia schema 27 ausente: ${token}`);
+assert(normalized.includes('drop function if exists marques_reserve_media_delete(text,text)'),'atalho antigo de delete precisa ser removido no schema 27');
+assert(normalized.includes('drop function if exists marques_reactivate_media(text,text)'),'atalho antigo de reativação precisa ser removido no schema 27');
+assert(normalized.includes("hashtextextended('media-lifecycle-global',0)"),'lock global de lifecycle/restore ausente no schema 27');
+assert(normalized.includes("raise exception 'media_lifecycle_active'"),'restore precisa recusar lease de mídia ativa');
+assert(normalized.includes('media_deletion_tombstones_last_operation_check'),'constraint de operação do tombstone ausente');
+assert(normalized.includes('media_deletion_tombstones_attempt_count_check'),'constraint de tentativas do tombstone ausente');
+assert(normalized.includes('marques_create_restore_snapshot'),'função de snapshot pré-restauração ausente');
+const statements=splitSqlStatements(schema);assert(statements.length>=80,`schema parece incompleto (${statements.length} instruções)`);
+if(process.exitCode)process.exit(process.exitCode);
+console.log(`Schema contract V6: OK (${statements.length} instruções SQL).`);
+
+assert(normalized.includes('whatsapp_template_first_contact'),'site_settings.whatsapp_template_first_contact ausente');
+assert(normalized.includes('whatsapp_template_review_request'),'site_settings.whatsapp_template_review_request ausente');
+assert(normalized.includes('whatsapp_template_repurchase'),'site_settings.whatsapp_template_repurchase ausente');
+
+assert(normalized.includes('production_status'),'inquiries.production_status ausente');
+assert(normalized.includes('production_due_at'),'inquiries.production_due_at ausente');
+assert(normalized.includes('review_requested_at'),'inquiries.review_requested_at ausente');
+assert(normalized.includes('whatsapp_template_approval'),'site_settings.whatsapp_template_approval ausente');
+assert(normalized.includes('whatsapp_template_ready'),'site_settings.whatsapp_template_ready ausente');
+assert(normalized.includes('pricing_hourly_rate_cents'),'site_settings.pricing_hourly_rate_cents ausente');
+assert(normalized.includes('pricing_target_margin_percent'),'site_settings.pricing_target_margin_percent ausente');
+
+assert(has(/create table if not exists offsite_backup_receipts\s*\(/),'offsite_backup_receipts ausente');
+assert(normalized.includes('offsite_backup_receipts_append_only'),'trigger append-only do recibo offsite ausente');
+assert(normalized.includes('idx_offsite_backup_receipts_verified'),'índice de freshness offsite ausente');
+
+assert(has(/create table if not exists recovery_drill_receipts\s*\(/),'recovery_drill_receipts ausente');
+assert(normalized.includes('recovery_drill_receipts_append_only'),'trigger append-only do recovery drill ausente');
+assert(normalized.includes('idx_recovery_drill_receipts_succeeded'),'índice do recovery drill ausente');
+
+assert(has(/create table if not exists media_backup_receipts\s*\(/),'media_backup_receipts ausente');
+assert(normalized.includes('media_backup_receipts_append_only'),'trigger append-only do backup de mídia ausente');
+assert(normalized.includes('idx_media_backup_receipts_verified'),'índice do backup de mídia ausente');
+
+assert(has(/create table if not exists media_recovery_drill_receipts\s*\(/),'media_recovery_drill_receipts ausente');
+assert(normalized.includes('media_recovery_drill_receipts_append_only'),'trigger append-only do media recovery drill ausente');
+assert(normalized.includes('idx_media_recovery_drill_receipts_succeeded'),'índice do media recovery drill ausente');

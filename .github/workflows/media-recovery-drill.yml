@@ -1,0 +1,49 @@
+name: Weekly media recovery drill
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 0'
+concurrency:
+  group: marques-media-recovery-drill
+  cancel-in-progress: false
+jobs:
+  drill:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.MEDIA_RECOVERY_DRILL_ENABLED == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Require reproducible dependency lock
+        run: test -f package-lock.json || (echo "::error::package-lock.json obrigatório. Execute Generate package lock e faça commit do arquivo." && exit 1)
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Validate disaster-recovery storage isolation
+        run: npm run check:dr-storage
+      - run: npm run check:media-recovery-drill
+      - name: Execute isolated media restore drill
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_FORCE_PATH_STYLE: ${{ vars.BACKUP_S3_FORCE_PATH_STYLE }}
+          DRILL_S3_ENDPOINT: ${{ secrets.DRILL_S3_ENDPOINT }}
+          DRILL_S3_REGION: ${{ vars.DRILL_S3_REGION }}
+          DRILL_S3_BUCKET: ${{ secrets.DRILL_S3_BUCKET }}
+          DRILL_S3_ACCESS_KEY_ID: ${{ secrets.DRILL_S3_ACCESS_KEY_ID }}
+          DRILL_S3_SECRET_ACCESS_KEY: ${{ secrets.DRILL_S3_SECRET_ACCESS_KEY }}
+          DRILL_S3_FORCE_PATH_STYLE: ${{ vars.DRILL_S3_FORCE_PATH_STYLE }}
+          MEDIA_RECOVERY_DRILL_CONFIRM_ISOLATED: '1'
+        run: npm run media:recovery-drill

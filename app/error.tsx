@@ -1,0 +1,2 @@
+'use client';
+export default function ErrorPage({reset}:{reset:()=>void}){return <main className="state-page"><div><div className="eyebrow">Erro</div><h1>Não foi possível carregar esta parte do site.</h1><p>Tente novamente. Se o problema continuar, o atendimento pelo WhatsApp continua disponível pela página inicial.</p><button type="button" className="btn btn-primary" onClick={reset}>Tentar novamente</button></div></main>;}

@@ -1,0 +1,17 @@
+'use client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Images, LoaderCircle, Search, X } from 'lucide-react';
+import { fetchJson } from '@/lib/client';
+import SafeImage from '@/components/SafeImage';
+import { useDialogA11y } from '@/components/useDialogA11y';
+
+type MediaItem={key:string;url:string;size:number;updated_at:string;unavailable?:boolean};
+type MediaPage={configured:boolean;items:MediaItem[];next:string|null};
+export default function MediaPicker({onSelect,label='Biblioteca'}:{onSelect:(url:string)=>void;label?:string}){
+  const [open,setOpen]=useState(false),[items,setItems]=useState<MediaItem[]>([]),[cursor,setCursor]=useState<string|null>(null),[configured,setConfigured]=useState<boolean|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[query,setQuery]=useState('');const ref=useRef<HTMLDivElement>(null);useDialogA11y(open,ref,()=>setOpen(false));
+  async function load(next?:string|null,replace=false){setLoading(true);setError('');try{const qs=next?`?cursor=${encodeURIComponent(next)}`:'';const data=await fetchJson<MediaPage>(`/api/admin/media${qs}`);setConfigured(data.configured);setCursor(data.next);setItems(prev=>replace?data.items:[...prev,...data.items.filter(x=>!prev.some(p=>p.key===x.key))]);}catch(e){setError(e instanceof Error?e.message:'Não foi possível carregar a biblioteca.');}finally{setLoading(false);}}
+  useEffect(()=>{if(open&&configured===null)void load(null,true);},[open,configured]);
+  const shown=useMemo(()=>{const available=items.filter(x=>!x.unavailable);const q=query.trim().toLowerCase();return q?available.filter(x=>x.key.toLowerCase().includes(q)):available;},[items,query]);
+  function choose(url:string){onSelect(url);setOpen(false);}
+  return <><button type="button" className="btn" onClick={()=>setOpen(true)}><Images size={15}/>{label}</button>{open&&<div className="media-picker-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><div ref={ref} className="media-picker-dialog" role="dialog" aria-modal="true" aria-label="Selecionar imagem da biblioteca" tabIndex={-1}><header><div><span className="eyebrow">Storage</span><h2>Selecionar da biblioteca</h2></div><button type="button" className="icon-btn" onClick={()=>setOpen(false)} aria-label="Fechar biblioteca"><X size={18}/></button></header>{configured===false&&<div className="notice"><strong>Storage não configurado.</strong><span>Configure o S3 no RunSite ou continue usando URL/upload direto.</span></div>}<div className="searchbox media-picker-search"><Search size={16}/><input autoFocus placeholder="Buscar pelo nome do arquivo..." value={query} onChange={e=>setQuery(e.target.value)}/></div>{error&&<div className="error" role="alert">{error}<button type="button" className="btn" onClick={()=>load(null,true)}>Tentar novamente</button></div>}<div className="media-picker-grid">{shown.map(item=><button type="button" key={item.key} onClick={()=>choose(item.url)} title={`Usar ${item.key}`}><SafeImage src={item.url} alt="" loading="lazy" decoding="async"/><span><Check size={13}/> Usar imagem</span><small>{item.key.split('/').pop()}</small></button>)}{configured&&shown.length===0&&!loading&&<div className="empty compact">Nenhuma imagem encontrada.</div>}</div>{loading&&<div className="media-loading"><LoaderCircle className="spin" size={17}/> Carregando biblioteca...</div>}{cursor&&<button type="button" className="btn media-more" disabled={loading} onClick={()=>load(cursor)}>Carregar mais</button>}</div></div>}</>;
+}

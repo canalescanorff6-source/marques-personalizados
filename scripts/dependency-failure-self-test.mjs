@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { healthDecision, timedProbe } from '../lib/health-policy.ts';
+const db={ok:true,state:'ok',configured:true,latency_ms:10};
+const schema={ok:true,state:'ok',configured:true,latency_ms:10,version:15,expected:15};
+const integrity={ok:true,state:'ok',configured:true,latency_ms:10,issues:[]};
+const storageOptionalAbsent={ok:true,state:'not-configured',configured:false,required:false,latency_ms:0};
+const healthy=healthDecision({database:db,schema,integrity,storage:storageOptionalAbsent});assert.equal(healthy.readinessOk,true);assert.equal(healthy.deepOk,true);
+const dbDown=healthDecision({database:{...db,ok:false,state:'unavailable'},schema,integrity,storage:storageOptionalAbsent});assert.equal(dbDown.readinessOk,false);assert.ok(dbDown.blockers.includes('database'));
+const stale=healthDecision({database:db,schema:{...schema,ok:false,state:'stale',version:11},integrity,storage:storageOptionalAbsent});assert.equal(stale.readinessOk,false);assert.ok(stale.blockers.includes('schema'));
+const corrupt=healthDecision({database:db,schema,integrity:{...integrity,ok:false,state:'invalid',issues:['x']},storage:storageOptionalAbsent});assert.equal(corrupt.readinessOk,false);assert.ok(corrupt.blockers.includes('integrity'));
+const optionalS3Down=healthDecision({database:db,schema,integrity,storage:{ok:false,state:'unavailable',configured:true,required:false,latency_ms:12}});assert.equal(optionalS3Down.readinessOk,true);assert.equal(optionalS3Down.deepOk,false);assert.equal(optionalS3Down.degraded,true);
+const requiredS3Down=healthDecision({database:db,schema,integrity,storage:{ok:false,state:'unavailable',configured:true,required:true,latency_ms:12}});assert.equal(requiredS3Down.readinessOk,false);assert.ok(requiredS3Down.blockers.includes('storage'));
+const partialS3=healthDecision({database:db,schema,integrity,storage:{ok:false,state:'partial-config',configured:false,required:false,latency_ms:0}});assert.equal(partialS3.readinessOk,true);assert.equal(partialS3.deepOk,false);
+const invalidS3=healthDecision({database:db,schema,integrity,storage:{ok:false,state:'invalid',configured:false,required:false,latency_ms:0}});assert.equal(invalidS3.readinessOk,true);assert.equal(invalidS3.deepOk,false);assert.equal(invalidS3.degraded,true);
+const timed=await timedProbe(()=>new Promise(resolve=>setTimeout(()=>resolve('late'),80)),15);assert.equal(timed.ok,false);if(!timed.ok)assert.equal(timed.timed_out,true);
+const quick=await timedProbe(async()=>42,50);assert.equal(quick.ok,true);if(quick.ok)assert.equal(quick.value,42);
+console.log('Dependency failure self-test: OK (DB, schema, integrity, S3 optional/required, partial config e timeout).');

@@ -1,0 +1,10 @@
+<svg width="900" height="960" viewBox="0 0 900 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#292D33"/><stop offset="1" stop-color="#101316"/></linearGradient><radialGradient id="r"><stop stop-color="#C7A15B" stop-opacity=".45"/><stop offset="1" stop-color="#C7A15B" stop-opacity="0"/></radialGradient></defs>
+<rect width="900" height="960" fill="url(#g)"/><circle cx="650" cy="250" r="300" fill="url(#r)"/>
+<path d="M253 646C253 523 354 423 478 423C601 423 702 523 702 646V728H253V646Z" fill="#171A1E" stroke="#C7A15B" stroke-width="5"/>
+<circle cx="478" cy="384" r="145" fill="#1E2328" stroke="#E0C58E" stroke-width="6"/>
+<path d="M335 384H621" stroke="#C7A15B" stroke-width="4" stroke-dasharray="10 14"/>
+<text x="478" y="372" fill="#F3EFE7" font-size="48" font-family="Arial" font-weight="700" text-anchor="middle">TOPO</text>
+<text x="478" y="426" fill="#C7A15B" font-size="28" font-family="Arial" font-weight="700" text-anchor="middle">PREMIUM</text>
+<text x="70" y="870" fill="#A9ADB2" font-size="22" font-family="Arial">Substitua pela foto real no painel</text>
+</svg>
