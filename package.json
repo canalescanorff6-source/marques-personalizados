@@ -78,7 +78,7 @@
     "check:dr-storage": "node scripts/dr-storage-contract-check.mjs && node --no-warnings --experimental-strip-types scripts/dr-storage-self-test.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1127.0",
+    "@aws-sdk/client-s3": "3.1132.0",
     "@neondatabase/serverless": "1.1.0",
     "lucide-react": "1.42.0",
     "next": "16.3.4",
